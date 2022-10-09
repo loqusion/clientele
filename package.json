@@ -1,0 +1,60 @@
+{
+  "name": "clientele",
+  "private": true,
+  "version": "0.1.0",
+  "author": "John Bernard <38332081+loqusion@users.noreply.github.com>",
+  "packageManager": "pnpm@7.12.2",
+  "workspaces": [
+    "packages/*"
+  ],
+  "repository": "github:loqusion/clientele",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "prepare": "husky install",
+    "watch": "pnpm -r run watch",
+    "build": "pnpm -r run build",
+    "clean": "pnpm -r run clean",
+    "prepublishOnly": "pnpm clean && pnpm build",
+    "format": "prettier --write ./**/*.{ts,js,cjs}",
+    "lint": "eslint . --ext .ts --cache",
+    "lint:fix": "pnpm lint --fix",
+    "types:check": "pnpm -r run types:check",
+    "test": "jest",
+    "coverage": "pnpm test --coverage",
+    "run-all-checks": "pnpm types:check && pnpm lint && pnpm test"
+  },
+  "lint-staged": {
+    "*.ts": [
+      "eslint --fix --cache",
+      "prettier --write"
+    ]
+  },
+  "devDependencies": {
+    "@types/jest": "^29.1.2",
+    "@typescript-eslint/eslint-plugin": "^5.40.0",
+    "@typescript-eslint/parser": "^5.40.0",
+    "eslint": "^8.25.0",
+    "eslint-config-prettier": "^8.5.0",
+    "eslint-import-resolver-typescript": "^3.5.1",
+    "eslint-plugin-import": "^2.26.0",
+    "eslint-plugin-jest": "^27.1.1",
+    "husky": "^8.0.1",
+    "jest": "^29.1.2",
+    "jest-fetch-mock": "^3.0.3",
+    "lint-staged": "^13.0.3",
+    "prettier": "^2.7.1",
+    "rimraf": "^3.0.2",
+    "ts-jest": "^29.0.3",
+    "typescript": "^4.8.4"
+  },
+  "prettier": {
+    "semi": false,
+    "singleQuote": true,
+    "trailingComma": "all"
+  },
+  "engines": {
+    "node": ">=16",
+    "pnpm": "7"
+  }
+}
