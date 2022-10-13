@@ -19,7 +19,7 @@
   ],
   "scripts": {
     "watch": "pnpm build --watch",
-    "build": "tsc",
+    "build": "tsc --project tsconfig.build.json",
     "clean": "rimraf dist",
     "types:check": "tsc --noEmit"
   },
