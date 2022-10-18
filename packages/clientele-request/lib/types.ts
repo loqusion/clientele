@@ -77,6 +77,12 @@ export type ClienteleRequestHeaders = {
   'user-agent'?: string
 } & AnyHeaders
 
+export type ClienteleDefaults = {
+  baseUrl?: string
+  headers?: ClienteleRequestHeaders
+  request?: unknown
+}
+
 export type ClienteleRequestConfig = {
   url?: string
   method?: Method
@@ -84,8 +90,6 @@ export type ClienteleRequestConfig = {
   headers?: ClienteleRequestHeaders
   request?: unknown
 }
-
-export type ClienteleDefaults = ClienteleRequestConfig
 
 export type ClienteleRequestParameters = {
   [parameter: string]: unknown
@@ -100,7 +104,7 @@ export interface ClienteleRequestInterface<
     config?: ClienteleRequestConfig,
   ): Promise<ClienteleResponse<T>>
 
-  create: <C extends ClienteleRequestConfig = ClienteleRequestConfig>(
+  create: <C extends ClienteleDefaults = ClienteleDefaults>(
     config?: C,
   ) => C extends { baseUrl: string }
     ? ClienteleRequestInstance<D & C>
