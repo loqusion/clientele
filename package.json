@@ -21,7 +21,7 @@
     "lint:fix": "pnpm lint --fix",
     "types:check": "pnpm -r run types:check",
     "test": "jest",
-    "coverage": "pnpm test --coverage",
+    "coverage": "pnpm test -- --coverage",
     "run-all-checks": "pnpm types:check && pnpm lint && pnpm test"
   },
   "lint-staged": {
