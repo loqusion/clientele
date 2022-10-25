@@ -17,9 +17,18 @@ describe('request()', () => {
     expect(request).toBeInstanceOf(Function)
   })
 
-  it.todo('accepts method in route string')
+  it.each(['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'PATCH'])(
+    'accepts %s method in route string',
+    async (method) => {
+      await request(`${method} ${baseUrl}`)
+      expect(fetch.mock.lastCall?.[1]).toHaveProperty('method', method)
+    },
+  )
 
-  it.todo('defaults to GET when method is omitted from route string')
+  it('defaults to GET when method is omitted from route string', async () => {
+    await request(baseUrl)
+    expect(fetch.mock.lastCall?.[1]).toHaveProperty('method', 'GET')
+  })
 
   it('passes headers to fetch', async () => {
     await request(baseUrl, {}, { headers: { test: 'wowowo' } })
@@ -28,7 +37,13 @@ describe('request()', () => {
     })
   })
 
-  it.todo('omits undefined headers')
+  it('omits undefined headers', async () => {
+    await request(baseUrl, {}, { headers: { 'if-modified-since': undefined } })
+    console.log(fetch.mock.lastCall)
+    expect(fetch.mock.lastCall?.[1]).not.toHaveProperty(
+      'headers.if-modified-since',
+    )
+  })
 
   it.todo('allows custom user-agent')
 

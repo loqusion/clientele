@@ -53,7 +53,7 @@ async function fetchWrapper<
   R extends ClienteleResponse<T> = ClienteleResponse<T>,
 >(config: FetchConfig): Promise<R> {
   const requestInit = removeUndefinedProperties({
-    method: config.method,
+    method: config.method || 'GET',
     body: config.body,
     headers: config.headers as HeadersInit,
     redirect: config.redirect,
