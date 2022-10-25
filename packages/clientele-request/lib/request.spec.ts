@@ -1,3 +1,4 @@
+import { Agent } from 'node:http'
 import fetchMock from 'jest-fetch-mock'
 import request from './request.js'
 
@@ -6,10 +7,21 @@ const fetch = fetchMock.default
 // eslint-disable-next-line @typescript-eslint/no-unsafe-return
 jest.mock('cross-fetch', () => require('jest-fetch-mock'))
 
-const baseUrl = 'https://clientelejs.com'
+const baseUrl = 'https://api.clientelejs.com'
+
+function delay(ms: number) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms)
+  })
+}
 
 beforeEach(() => {
   fetch.mockReset()
+})
+
+afterEach(() => {
+  jest.useRealTimers()
+  jest.restoreAllMocks()
 })
 
 describe('request()', () => {
@@ -31,32 +43,108 @@ describe('request()', () => {
   })
 
   it('passes headers to fetch', async () => {
-    await request(baseUrl, {}, { headers: { test: 'wowowo' } })
+    const headers = {
+      test: 'test 123',
+      'user-agent': 'amogus',
+    }
+    await request(baseUrl, {}, { headers })
     expect(fetch.mock.lastCall?.[1]).toHaveProperty('headers', {
-      test: 'wowowo',
+      test: 'test 123',
+      'user-agent': 'amogus',
     })
   })
 
   it('omits undefined headers', async () => {
-    await request(baseUrl, {}, { headers: { 'if-modified-since': undefined } })
-    console.log(fetch.mock.lastCall)
+    const headers = {
+      'if-modified-since': undefined,
+    }
+    await request(baseUrl, {}, { headers })
     expect(fetch.mock.lastCall?.[1]).not.toHaveProperty(
       'headers.if-modified-since',
     )
   })
 
-  it.todo('allows custom user-agent')
+  it('converts uppercase header names to lowercase', async () => {
+    const headers = {
+      Authorization: 'token 12345',
+      ETag: '"33a64df551425fcc55e4d42a148795d9f25f89d4"',
+    }
+    await request(baseUrl, {}, { headers })
+    expect(fetch.mock.lastCall?.[1]).toHaveProperty('headers', {
+      authorization: 'token 12345',
+      etag: '"33a64df551425fcc55e4d42a148795d9f25f89d4"',
+    })
+  })
 
-  it.todo('converts uppercase header names to lowercase')
+  it('accepts request timeout', async () => {
+    jest.useFakeTimers()
+    const setTimeoutSpy = jest.spyOn(global, 'setTimeout')
 
-  it.todo('accepts request timeout')
+    fetch.once(() =>
+      delay(3000).then(() => ({
+        status: 200,
+        headers: {},
+        body: JSON.stringify({ message: 'ok' }),
+      })),
+    )
+    const requestPromise = request(baseUrl, {}, { request: { timeout: 100 } })
+    jest.runAllTimers()
 
-  it.todo('accepts request agent')
+    await expect(requestPromise).rejects.toMatchObject({
+      name: 'ClienteleRequestError',
+      status: 500,
+    })
+    expect(setTimeoutSpy).toHaveBeenCalledTimes(1)
+    expect(setTimeoutSpy).toHaveBeenLastCalledWith(expect.any(Function), 100)
+  })
 
-  it.todo('config.request.signal')
-  it.todo('config.request.fetch')
+  it('passes config.request.agent to fetch', async () => {
+    await request(baseUrl, {}, { request: { agent: new Agent() } })
+    expect(fetch.mock.lastCall?.[1]).toHaveProperty('agent', expect.any(Agent))
+  })
+
+  it('config.request.signal', async () => {
+    jest.useFakeTimers()
+
+    const controller = new AbortController()
+    const signal = controller.signal
+
+    fetch.once(() => {
+      controller.abort()
+      return delay(3000).then(() => ({
+        status: 200,
+        headers: {},
+        body: JSON.stringify({ message: 'ok' }),
+      }))
+    })
+
+    const requestPromise = request(baseUrl, {}, { request: { signal } })
+    jest.runAllTimers()
+
+    await expect(requestPromise).rejects.toHaveProperty(
+      'message',
+      expect.stringMatching(/\b(signal|AbortSignal)\b/i),
+    )
+  })
+
+  it('accepts custom fetch implementation', async () => {
+    const customFetch = () =>
+      Promise.resolve({
+        data: JSON.stringify({ message: 'hi' }),
+      })
+
+    const { data } = await request(
+      baseUrl,
+      {},
+      { request: { fetch: customFetch } },
+    )
+    expect(data).toBe({
+      message: 'hi',
+    })
+  })
+
   it.todo('config.request.hook')
-  it.todo('config.request.timeout')
+
   it.todo('readstream data')
   it.todo('Buffer data')
   it.todo('ArrayBuffer data')
@@ -110,23 +198,16 @@ describe('request()', () => {
   it.todo('allows HEAD requests')
 
   it('parses JSON response', async () => {
-    fetch.once(
-      JSON.stringify({
-        data: 12345,
-        array: ['hello', 'world', 1985],
-        nested: {
-          data: 67890,
-        },
-      }),
-    )
-    const { data } = await request(baseUrl)
-    expect(data).toEqual({
+    const expectedData = {
       data: 12345,
       array: ['hello', 'world', 1985],
       nested: {
         data: 67890,
       },
-    })
+    }
+    fetch.once(JSON.stringify(expectedData))
+    const { data } = await request(baseUrl)
+    expect(data).toEqual(expectedData)
   })
 
   it.todo('Request error')

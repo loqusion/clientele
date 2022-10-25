@@ -83,16 +83,16 @@ export type ClienteleDefaults = {
   request?: unknown
 }
 
+export type ClienteleRequestParameters = {
+  [parameter: string]: unknown
+}
+
 export type ClienteleRequestConfig = {
   url?: string
   method?: Method
   baseUrl?: string
   headers?: ClienteleRequestHeaders
   request?: unknown
-}
-
-export type ClienteleRequestParameters = {
-  [parameter: string]: unknown
 }
 
 export interface ClienteleRequestInterface<
