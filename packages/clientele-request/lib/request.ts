@@ -1,105 +1,113 @@
-import fetch from 'cross-fetch'
 import { getUserAgent } from 'universal-user-agent'
 import packageJson from '@clientelejs/request/package.json'
 import type {
+  ClienteleDefaults,
   ClienteleRequestConfig,
-  ClienteleRequestHeaders,
   ClienteleRequestInterface,
   ClienteleRequestParameters,
-  ClienteleResponse,
   Method,
   Route,
 } from './types.js'
-import { mergeDeep, removeUndefinedProperties } from './utils.js'
+import type { FetchConfig } from './fetch-wrapper.js'
+import { parseTemplate } from './url-template.js'
+import { lowercaseKeys, mergeDeep, removeUndefinedProperties } from './utils.js'
+import fetchWrapper from './fetch-wrapper.js'
 
-function mergeRouteAndParams(
-  route: Route,
-  params: ClienteleRequestParameters,
-): Route {
-  console.log(params)
-  // TODO: implementation
-  return route
-}
-
-type FetchConfig = {
-  url: string
-  method: string
-  body: string
-  headers: ClienteleRequestHeaders
-  redirect?: 'error' | 'follow' | 'manual'
-  request: Record<string, unknown>
+function normalizeConfig<C extends ClienteleRequestConfig | ClienteleDefaults>(
+  config: C,
+): C {
+  const normalizedConfig = { ...config }
+  if (normalizedConfig.headers) {
+    normalizedConfig.headers = lowercaseKeys(
+      removeUndefinedProperties(normalizedConfig.headers),
+    ) as typeof config.headers
+  }
+  if ('method' in normalizedConfig) {
+    normalizedConfig.method =
+      normalizedConfig.method?.toUpperCase() as typeof normalizedConfig.method
+  }
+  return normalizedConfig
 }
 
 function mergeRouteAndConfig(
   route: Route,
-  config: Omit<ClienteleRequestConfig, 'url'>,
-): FetchConfig {
+  config: ClienteleRequestConfig,
+): ClienteleRequestConfig {
   const [field1, field2] = route.split(' ')
   if (field2) {
     return {
       ...config,
-      method: field1 as Method,
+      method: field1.toUpperCase() as Method,
       url: field2,
-    } as unknown as FetchConfig
+    }
   }
   return {
     ...config,
     url: field1,
-  } as unknown as FetchConfig
-}
-
-async function fetchWrapper<
-  T,
-  R extends ClienteleResponse<T> = ClienteleResponse<T>,
->(config: FetchConfig): Promise<R> {
-  const requestInit = removeUndefinedProperties({
-    method: config.method || 'GET',
-    body: config.body,
-    headers: config.headers as HeadersInit,
-    redirect: config.redirect,
-    ...config.request,
-  })
-  const res = await fetch(config.url, requestInit)
-
-  try {
-    return {
-      res,
-      data: JSON.parse(await res.text()) as T,
-    } as unknown as R
-  } catch (err) {
-    return {
-      res,
-      err,
-      data: null,
-    } as unknown as R
   }
 }
 
-const createInstance = (defaults: ClienteleRequestConfig = {}) => {
+function getAbsoluteUrl(baseUrl: string, url: string) {
+  url = url.replace(/:([a-z]\w+)/g, '{$1}')
+  if (!/^https?:\/\//.test(url)) {
+    if (baseUrl.endsWith('/')) {
+      baseUrl = baseUrl.slice(0, -1)
+    }
+    if (url.startsWith('/')) {
+      url = url.slice(1)
+    }
+    url = `${baseUrl}/${url}`
+  }
+  return url
+}
+
+function mergeConfigAndParams(
+  config: ClienteleRequestConfig,
+  params: ClienteleRequestParameters,
+): FetchConfig {
+  const urlTemplate = getAbsoluteUrl(config.baseUrl || '', config.url || '')
+  const url = parseTemplate(urlTemplate).expand(params)
+  const method = config.method || 'GET'
+  const headers = { ...config.headers }
+  let body: string | object | undefined
+  // TODO: populate body
+
+  return {
+    url,
+    method,
+    headers,
+    ...(typeof body !== 'undefined' ? { body } : {}),
+    ...(config.request ? { request: config.request } : {}),
+  } as FetchConfig
+}
+
+const createInstance = (defaults: ClienteleDefaults = {}) => {
   const requestApi = async function request(...args: unknown[]) {
     let route: string
     let params: ClienteleRequestParameters
-    let config: ClienteleRequestConfig
+    let unnormalizedConfig: ClienteleRequestConfig
     if (typeof args[0] === 'string') {
       route = args[0]
       params = (args[1] ?? {}) as typeof params
-      config = args[2] ?? {}
+      unnormalizedConfig = args[2] ?? {}
     } else {
-      route = defaults.url || ''
       params = (args[0] ?? {}) as typeof params
-      config = args[1] ?? {}
+      unnormalizedConfig = args[1] ?? {}
+      route = unnormalizedConfig.url || ''
     }
 
-    const mergedRoute = mergeRouteAndParams(route, params)
-    const mergedConfig = mergeRouteAndConfig(mergedRoute, config)
+    const config = normalizeConfig(unnormalizedConfig)
+    const defaultsAndConfig = mergeDeep(requestApi.defaults, config)
+    const mergedConfig = mergeRouteAndConfig(route, defaultsAndConfig)
+    const fetchConfig = mergeConfigAndParams(mergedConfig, params)
 
-    return fetchWrapper(mergedConfig)
+    return fetchWrapper(fetchConfig)
   }
 
-  requestApi.create = (config: ClienteleRequestConfig = {}) =>
-    createInstance(mergeDeep(defaults, config))
+  requestApi.create = (newDefaults: ClienteleDefaults = {}) =>
+    createInstance(mergeDeep(requestApi.defaults, newDefaults))
 
-  requestApi.defaults = defaults
+  requestApi.defaults = normalizeConfig(defaults)
 
   return requestApi
 }
@@ -109,6 +117,7 @@ const request = createInstance({
     'user-agent': `clientele-request.js/${
       packageJson.version
     } ${getUserAgent()}`,
+    'content-type': 'application/json; charset=utf-8',
   },
 }) as ClienteleRequestInterface
 

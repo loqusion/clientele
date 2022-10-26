@@ -48,10 +48,10 @@ describe('request()', () => {
       'user-agent': 'amogus',
     }
     await request(baseUrl, {}, { headers })
-    expect(fetch.mock.lastCall?.[1]).toHaveProperty('headers', {
-      test: 'test 123',
-      'user-agent': 'amogus',
-    })
+    expect(fetch.mock.lastCall?.[1]).toHaveProperty(
+      'headers',
+      expect.objectContaining(headers),
+    )
   })
 
   it('omits undefined headers', async () => {
@@ -70,10 +70,13 @@ describe('request()', () => {
       ETag: '"33a64df551425fcc55e4d42a148795d9f25f89d4"',
     }
     await request(baseUrl, {}, { headers })
-    expect(fetch.mock.lastCall?.[1]).toHaveProperty('headers', {
-      authorization: 'token 12345',
-      etag: '"33a64df551425fcc55e4d42a148795d9f25f89d4"',
-    })
+    expect(fetch.mock.lastCall?.[1]).toHaveProperty(
+      'headers',
+      expect.objectContaining({
+        authorization: 'token 12345',
+        etag: '"33a64df551425fcc55e4d42a148795d9f25f89d4"',
+      }),
+    )
   })
 
   it('accepts request timeout', async () => {
@@ -189,10 +192,13 @@ describe('request()', () => {
       labels: ['bug'],
     }
     await request(`POST ${baseUrl}`, params)
-    expect(fetch).toHaveBeenLastCalledWith(baseUrl, {
-      method: 'POST',
-      body: JSON.stringify(params),
-    })
+    expect(fetch).toHaveBeenLastCalledWith(
+      baseUrl,
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify(params),
+      }),
+    )
   })
 
   it.todo('allows HEAD requests')

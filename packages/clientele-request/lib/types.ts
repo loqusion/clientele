@@ -1,3 +1,5 @@
+import type { Agent } from 'http'
+
 export type Route = string
 
 export type Method = 'GET' | 'HEAD' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'
@@ -77,14 +79,18 @@ export type ClienteleRequestHeaders = {
   'user-agent'?: string
 } & AnyHeaders
 
+export type ClienteleRequestMeta = {
+  timeout?: number
+  agent?: Agent
+  signal?: AbortSignal
+  fetch?: unknown
+  hook?: unknown
+}
+
 export type ClienteleDefaults = {
   baseUrl?: string
   headers?: ClienteleRequestHeaders
-  request?: unknown
-}
-
-export type ClienteleRequestParameters = {
-  [parameter: string]: unknown
+  request?: ClienteleRequestMeta
 }
 
 export type ClienteleRequestConfig = {
@@ -92,7 +98,11 @@ export type ClienteleRequestConfig = {
   method?: Method
   baseUrl?: string
   headers?: ClienteleRequestHeaders
-  request?: unknown
+  request?: ClienteleRequestMeta
+}
+
+export type ClienteleRequestParameters = {
+  [parameter: string]: unknown
 }
 
 export interface ClienteleRequestInterface<
