@@ -9,9 +9,16 @@ import type {
   Route,
 } from './types.js'
 import type { FetchConfig } from './fetch-wrapper.js'
-import { parseTemplate } from './url-template.js'
-import { lowercaseKeys, mergeDeep, removeUndefinedProperties } from './utils.js'
 import fetchWrapper from './fetch-wrapper.js'
+import { parseTemplate } from './url-template.js'
+import {
+  addQueryParameters,
+  extractUrlTemplateExpressions,
+  lowercaseKeys,
+  mergeDeep,
+  methodCanHaveBody,
+  removeUndefinedProperties,
+} from './utils.js'
 
 function normalizeConfig<C extends ClienteleRequestConfig | ClienteleDefaults>(
   config: C,
@@ -65,12 +72,27 @@ function mergeConfigAndParams(
   config: ClienteleRequestConfig,
   params: ClienteleRequestParameters,
 ): FetchConfig {
-  const urlTemplate = getAbsoluteUrl(config.baseUrl || '', config.url || '')
-  const url = parseTemplate(urlTemplate).expand(params)
   const method = config.method || 'GET'
   const headers = { ...config.headers }
   let body: string | object | undefined
-  // TODO: populate body
+
+  const urlTemplate = getAbsoluteUrl(config.baseUrl || '', config.url || '')
+  let url = parseTemplate(urlTemplate).expand(params)
+
+  const urlTemplateExpressions = extractUrlTemplateExpressions(urlTemplate)
+  const remainingParameters = Object.fromEntries(
+    Object.entries(params).filter(
+      ([paramName]) => !urlTemplateExpressions.includes(paramName),
+    ),
+  )
+
+  if (!methodCanHaveBody(method)) {
+    url = addQueryParameters(url, remainingParameters)
+  } else if (config.data) {
+    body = config.data as typeof body
+  } else if (Object.keys(remainingParameters).length) {
+    body = remainingParameters
+  }
 
   return {
     url,

@@ -99,10 +99,11 @@ export type ClienteleRequestConfig = {
   baseUrl?: string
   headers?: ClienteleRequestHeaders
   request?: ClienteleRequestMeta
+  data?: unknown
 }
 
 export type ClienteleRequestParameters = {
-  [parameter: string]: unknown
+  [parameter: string]: any
 }
 
 export interface ClienteleRequestInterface<

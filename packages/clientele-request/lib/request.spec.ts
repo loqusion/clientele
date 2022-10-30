@@ -112,13 +112,14 @@ describe('request()', () => {
     const controller = new AbortController()
     const signal = controller.signal
 
-    fetch.once(() => {
+    fetch.once(async () => {
       controller.abort()
-      return delay(3000).then(() => ({
+      await delay(3000)
+      return {
         status: 200,
         headers: {},
         body: JSON.stringify({ message: 'ok' }),
-      }))
+      }
     })
 
     const requestPromise = request(baseUrl, {}, { request: { signal } })
@@ -161,7 +162,7 @@ describe('request()', () => {
       path: 'path/to/file.txt',
     })
     expect(fetch.mock.lastCall?.[0]).toBe(
-      `${baseUrl}/repos/loqusion/clientelejs/contents/path/to/file.txt`,
+      `${baseUrl}/repos/loqusion/clientelejs/contents/path%2Fto%2Ffile.txt`,
     )
     await request(`${baseUrl}/repos/:owner/:repo/contents/:path`, {
       owner: 'loqusion',
@@ -169,7 +170,7 @@ describe('request()', () => {
       path: 'path/to/file.txt',
     })
     expect(fetch.mock.lastCall?.[0]).toBe(
-      `${baseUrl}/repos/loqusion/clientelejs/contents/path/to/file.txt`,
+      `${baseUrl}/repos/loqusion/clientelejs/contents/path%2Fto%2Ffile.txt`,
     )
   })
 
