@@ -14,7 +14,13 @@ export default class RequestError extends Error {
   constructor(
     message: string,
     statusCode: number,
-    options: RequestErrorOptions,
+    options: RequestErrorOptions = {
+      config: {
+        method: 'GET',
+        url: '',
+        headers: {},
+      },
+    },
   ) {
     super(message)
 

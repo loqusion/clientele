@@ -154,5 +154,5 @@ export type ClienteleResponse<T, S extends HttpStatusCode = HttpStatusCode> = {
   /** URL of response after all redirects */
   url: string
   /** Response data */
-  data: T
+  data: T | undefined
 }

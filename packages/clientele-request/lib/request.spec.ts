@@ -1,4 +1,6 @@
+import fs from 'node:fs'
 import { Agent } from 'node:http'
+import { Stream } from 'node:stream'
 import fetchMock from 'jest-fetch-mock'
 import request from './request.js'
 
@@ -8,6 +10,12 @@ const fetch = fetchMock.default
 jest.mock('cross-fetch', () => require('jest-fetch-mock'))
 
 const baseUrl = 'https://api.clientelejs.com'
+const jsonResponseInit = {
+  status: 200,
+  headers: {
+    'content-type': 'application/json',
+  },
+}
 
 function delay(ms: number) {
   return new Promise((resolve) => {
@@ -17,6 +25,7 @@ function delay(ms: number) {
 
 beforeEach(() => {
   fetch.mockReset()
+  fetch.mockResponse(() => Promise.resolve({ headers: {} }))
 })
 
 afterEach(() => {
@@ -24,7 +33,7 @@ afterEach(() => {
   jest.restoreAllMocks()
 })
 
-describe('request()', () => {
+describe('clientele request', () => {
   it('is a function', () => {
     expect(request).toBeInstanceOf(Function)
   })
@@ -79,7 +88,8 @@ describe('request()', () => {
     )
   })
 
-  it('accepts request timeout', async () => {
+  // eslint-disable-next-line jest/no-disabled-tests
+  it.skip('accepts request timeout', async () => {
     jest.useFakeTimers()
     const setTimeoutSpy = jest.spyOn(global, 'setTimeout')
 
@@ -106,7 +116,7 @@ describe('request()', () => {
     expect(fetch.mock.lastCall?.[1]).toHaveProperty('agent', expect.any(Agent))
   })
 
-  it('config.request.signal', async () => {
+  it('terminates at an AbortController signal', async () => {
     jest.useFakeTimers()
 
     const controller = new AbortController()
@@ -116,8 +126,7 @@ describe('request()', () => {
       controller.abort()
       await delay(3000)
       return {
-        status: 200,
-        headers: {},
+        ...jsonResponseInit,
         body: JSON.stringify({ message: 'ok' }),
       }
     })
@@ -125,62 +134,180 @@ describe('request()', () => {
     const requestPromise = request(baseUrl, {}, { request: { signal } })
     jest.runAllTimers()
 
-    await expect(requestPromise).rejects.toHaveProperty(
-      'message',
-      expect.stringMatching(/\b(signal|AbortSignal)\b/i),
-    )
+    await expect(requestPromise).rejects.toMatchObject({
+      message: expect.stringMatching(
+        /\bThe operation was aborted\b/i,
+      ) as unknown,
+    })
   })
 
   it('accepts custom fetch implementation', async () => {
     const customFetch = () =>
-      Promise.resolve({
-        data: JSON.stringify({ message: 'hi' }),
-      })
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            message: 'hi',
+          }),
+          jsonResponseInit,
+        ),
+      )
 
     const { data } = await request(
       baseUrl,
       {},
-      { request: { fetch: customFetch } },
+      {
+        request: {
+          fetch: customFetch,
+        },
+      },
     )
-    expect(data).toBe({
-      message: 'hi',
-    })
+    expect(data).toEqual({ message: 'hi' })
   })
 
   it.todo('config.request.hook')
 
-  it.todo('readstream data')
-  it.todo('Buffer data')
-  it.todo('ArrayBuffer data')
-
-  it.todo('sets request body directly with `data` option')
-
-  it('parses route with params', async () => {
-    await request(`${baseUrl}/repos/{owner}/{repo}/contents/{path}`, {
-      owner: 'loqusion',
-      repo: 'clientelejs',
-      path: 'path/to/file.txt',
-    })
-    expect(fetch.mock.lastCall?.[0]).toBe(
-      `${baseUrl}/repos/loqusion/clientelejs/contents/path%2Fto%2Ffile.txt`,
+  it('accepts ReadStream data', async () => {
+    const data = fs.createReadStream(__filename)
+    await request(
+      `POST ${baseUrl}/repos/{owner}/{repo}/releases/{release_id}/assets`,
+      {},
+      { data },
     )
-    await request(`${baseUrl}/repos/:owner/:repo/contents/:path`, {
-      owner: 'loqusion',
-      repo: 'clientelejs',
-      path: 'path/to/file.txt',
-    })
-    expect(fetch.mock.lastCall?.[0]).toBe(
-      `${baseUrl}/repos/loqusion/clientelejs/contents/path%2Fto%2Ffile.txt`,
+    expect(fetch.mock.lastCall?.[1]).toHaveProperty(
+      'body',
+      expect.any(Stream.Readable),
     )
   })
 
-  it.todo('parses route with query params')
+  it('accepts Buffer data', async () => {
+    const data = Buffer.from('Hello, world!\n')
+    await request(
+      `POST ${baseUrl}/repos/{owner}/{repo}/releases/{release_id}/assets`,
+      {},
+      { data },
+    )
+    expect(fetch.mock.lastCall?.[1]).toHaveProperty('body', data)
+  })
 
-  it.todo('percent-encodes reserved/non-ascii characters in query param')
+  it('accepts ArrayBuffer data', async () => {
+    const stringToArrayBuffer = (str: string) => {
+      const array = new Uint8Array(str.length)
+      for (let i = 0; i < str.length; i++) {
+        array[i] = str.charCodeAt(i)
+      }
+      return array.buffer
+    }
 
-  it.todo('preserves existing query params when adding new ones')
+    const data = stringToArrayBuffer('Hello, World!\n')
+    await request(
+      `POST ${baseUrl}/repos/{owner}/{repo}/releases/{release_id}/assets`,
+      {},
+      { data },
+    )
+    expect(fetch.mock.lastCall?.[1]).toHaveProperty('body', data)
+  })
 
-  it.todo('uses remaining params as query string in GET')
+  it('sets request body directly with `data` option', async () => {
+    const data = 'Hello world github/linguist#1 **cool**, and #1!'
+    await request(
+      `POST ${baseUrl}/markdown/raw`,
+      {},
+      {
+        data,
+        headers: {
+          'content-type': 'text/plain',
+        },
+      },
+    )
+    expect(fetch.mock.lastCall?.[1]).toHaveProperty('body', data)
+  })
+
+  it('performs simple string expansion', async () => {
+    const params = {
+      owner: 'loqusion',
+      repo: 'clientelejs',
+      path: 'path/to/file.txt',
+    }
+    const expectedUrl = `${baseUrl}/repos/${encodeURIComponent(
+      params.owner,
+    )}/${encodeURIComponent(params.repo)}/contents/${encodeURIComponent(
+      params.path,
+    )}`
+
+    await request(`${baseUrl}/repos/{owner}/{repo}/contents/{path}`, params)
+    expect(fetch.mock.lastCall?.[0]).toBe(expectedUrl)
+    await request(`${baseUrl}/repos/:owner/:repo/contents/:path`, params)
+    expect(fetch.mock.lastCall?.[0]).toBe(expectedUrl)
+  })
+
+  it('performs form-style query expansion', async () => {
+    const params = {
+      name: 'example.zip',
+      label: 'short description',
+    }
+
+    await request(
+      `POST ${baseUrl}/repos/octokat/Hello-World/releases/1/assets{?name,label}`,
+      params,
+    )
+    expect(fetch.mock.lastCall?.[0]).toBe(
+      `${baseUrl}/repos/octokat/Hello-World/releases/1/assets?name=${encodeURIComponent(
+        params.name,
+      )}&label=${encodeURIComponent(params.label)}`,
+    )
+  })
+
+  it('percent-encodes reserved/non-ascii characters in query param', async () => {
+    const params = {
+      q: 'location:Jyväskylä',
+    }
+
+    await request(`${baseUrl}/search/issues{?q}`, params)
+    expect(fetch.mock.lastCall?.[0]).toBe(
+      `${baseUrl}/search/issues?q=${encodeURIComponent(params.q)}`,
+    )
+  })
+
+  it('preserves existing query params when adding new ones', async () => {
+    const url = `${baseUrl}/orgs/octokit/repos?access_token=abc4567`
+
+    // NOTE: For now, {?query} expansion will always lead with `?`, even when there is already a `?` in the url.
+    // This may change in the future.
+    await request(`${url}{?type}`, { type: 'private' })
+    expect(fetch.mock.lastCall?.[0]).toBe(`${url}?type=private`)
+    await request(`${url}`, { type: 'private' })
+    expect(fetch.mock.lastCall?.[0]).toBe(`${url}&type=private`)
+  })
+
+  it('ignores undefined variables in expansion', async () => {
+    await request(`${baseUrl}/repos/{owner}/{repo}/contents/{path}`, {
+      owner: 'loqusion',
+      repo: undefined,
+    })
+    expect(fetch.mock.lastCall?.[0]).toBe(
+      `${baseUrl}/repos/loqusion//contents/`,
+    )
+  })
+
+  it.each(['GET', 'HEAD'])(
+    'uses remaining params as query string in %s',
+    async (method) => {
+      const params = {
+        name: 'example.zip',
+        label: 'short description',
+      }
+
+      await request(
+        `${method} ${baseUrl}/repos/octokat/Hello-World/releases/1/assets`,
+        params,
+      )
+      expect(fetch.mock.lastCall?.[0]).toBe(
+        `${baseUrl}/repos/octokat/Hello-World/releases/1/assets?name=${encodeURIComponent(
+          params.name,
+        )}&label=${encodeURIComponent(params.label)}`,
+      )
+    },
+  )
 
   it('uses remaining params in request body for POST', async () => {
     const params = {
@@ -202,8 +329,6 @@ describe('request()', () => {
     )
   })
 
-  it.todo('allows HEAD requests')
-
   it('parses JSON response', async () => {
     const expectedData = {
       data: 12345,
@@ -212,7 +337,7 @@ describe('request()', () => {
         data: 67890,
       },
     }
-    fetch.once(JSON.stringify(expectedData))
+    fetch.once(JSON.stringify(expectedData), jsonResponseInit)
     const { data } = await request(baseUrl)
     expect(data).toEqual(expectedData)
   })
@@ -229,7 +354,7 @@ describe('request()', () => {
   it.todo('returns url')
 })
 
-describe('request.create()', () => {
+describe('clientele request.create()', () => {
   it('is a function', () => {
     expect(request.create).toBeInstanceOf(Function)
   })
@@ -239,7 +364,7 @@ describe('request.create()', () => {
   it.todo('cascades defaults')
 })
 
-describe('request instance', () => {
+describe('clientele request instance', () => {
   it('is a function', () => {
     const myRequest = request.create()
     expect(myRequest).toBeInstanceOf(Function)
