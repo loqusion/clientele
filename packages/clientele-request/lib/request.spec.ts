@@ -2,7 +2,10 @@ import fs from 'node:fs'
 import { Agent } from 'node:http'
 import { Stream } from 'node:stream'
 import fetchMock from 'jest-fetch-mock'
+import type { PartialDeep } from 'type-fest'
 import request from './request.js'
+import { HttpStatusCode } from './types.js'
+import type RequestError from './request-error.js'
 
 const fetch = fetchMock.default
 
@@ -88,6 +91,10 @@ describe('clientele request', () => {
     )
   })
 
+  it('rejects empty url', async () => {
+    await expect(request('')).rejects.toBeDefined()
+  })
+
   // eslint-disable-next-line jest/no-disabled-tests
   it.skip('accepts request timeout', async () => {
     jest.useFakeTimers()
@@ -103,7 +110,7 @@ describe('clientele request', () => {
     const requestPromise = request(baseUrl, {}, { request: { timeout: 100 } })
     jest.runAllTimers()
 
-    await expect(requestPromise).rejects.toMatchObject({
+    await expect(requestPromise).rejects.toMatchObject<Partial<RequestError>>({
       name: 'ClienteleRequestError',
       status: 500,
     })
@@ -134,10 +141,10 @@ describe('clientele request', () => {
     const requestPromise = request(baseUrl, {}, { request: { signal } })
     jest.runAllTimers()
 
-    await expect(requestPromise).rejects.toMatchObject({
+    await expect(requestPromise).rejects.toMatchObject<Partial<RequestError>>({
       message: expect.stringMatching(
         /\bThe operation was aborted\b/i,
-      ) as unknown,
+      ) as string,
     })
   })
 
@@ -329,6 +336,13 @@ describe('clientele request', () => {
     )
   })
 
+  it('returns url', async () => {
+    fetch.once((req) => Promise.resolve({ url: req.url }))
+    const expectedUrl = `${baseUrl}/api/v2/status.json`
+    const { url } = await request(expectedUrl)
+    expect(url).toBe(expectedUrl)
+  })
+
   it('parses JSON response', async () => {
     const expectedData = {
       data: 12345,
@@ -342,16 +356,127 @@ describe('clientele request', () => {
     expect(data).toEqual(expectedData)
   })
 
-  it.todo('Request error')
-  it.todo('304 etag')
-  it.todo('304 last-modified')
-  it.todo('404 not found')
-  it.todo('422 error with details')
-  it.todo('Not found')
-  it.todo('non-JSON response')
-  it.todo('accepts binary response')
-  it.todo('redacts sensitive info from errors')
-  it.todo('returns url')
+  it('returns non-JSON response', async () => {
+    const body = '# hello-world'
+    fetch.once(() =>
+      Promise.resolve({
+        status: HttpStatusCode.Ok,
+        body,
+        headers: {
+          'content-length': '13',
+          'content-type': 'application/vnd.github.v3.raw; charset=utf-8',
+        },
+      }),
+    )
+
+    const { data } = await request(
+      `GET ${baseUrl}/repos/octokit-fixture-org/hello-world/contents/README.md`,
+    )
+    expect(data).toBe(body)
+  })
+
+  it('returns binary response', async () => {
+    const body = Buffer.from(
+      '1f8b0800000000000003cb4f2ec9cfce2cd14dcbac28292d4ad5cd2f4ad74d4f2dd14d2c4acec82c4bd53580007d060a0050bfb9b9a90203c428741ac2313436343307222320dbc010a8dc5c81c194124b8905a5c525894540a714e5e797e05347481edd734304e41319ff41ae8e2ebeae7ab92964d801d46f66668227fe0d4d51e3dfc8d0c8d808284f75df6201233cfe951590627ba01d330a46c1281805a3806e000024cb59d6000a0000',
+      'hex',
+    )
+    fetch.once(() =>
+      Promise.resolve({
+        status: HttpStatusCode.Ok,
+        // workaround
+        body: body as unknown as string,
+        headers: {
+          'content-type': 'application/x-gzip',
+          'content-length': `${body.byteLength}`,
+        },
+      }),
+    )
+
+    const { data } = (await request(
+      'GET https://codeload.github.com/octokit-fixture-org/get-archive/legacy.tar.gz/master',
+    )) as { data: ArrayBuffer }
+    const dataView = new Uint8Array(data)
+
+    expect(body.equals(dataView)).toBe(true)
+  })
+
+  it('returns undefined data for 204 NoContent', async () => {
+    fetch.once(() => Promise.resolve({ status: HttpStatusCode.NoContent }))
+    const { status, data } = await request(
+      `PUT ${baseUrl}/user/starred/octocat/hello-world`,
+    )
+    expect(status).toBe(HttpStatusCode.NoContent)
+    expect(data).toBeUndefined()
+  })
+
+  // Officially unassigned port. See https://en.wikipedia.org/wiki/List_of_TCP_and_UDP_port_numbers
+  it('rejects requests to port 8', async () => {
+    fetch.dontMockOnce()
+    const requestPromise = request('GET https://127.0.0.1:8/')
+    await expect(requestPromise).rejects.toHaveProperty(
+      'status',
+      HttpStatusCode.InternalServerError,
+    )
+  })
+
+  it('rejects on 304 NotModified by default', async () => {
+    fetch.once(() => Promise.resolve({ status: HttpStatusCode.NotModified }))
+    const headers = { 'if-none-match': 'etag' }
+    const requestPromise = request(`GET ${baseUrl}/orgs/myorg`, {}, { headers })
+    await expect(requestPromise).rejects.toHaveProperty(
+      'status',
+      HttpStatusCode.NotModified,
+    )
+  })
+
+  it('rejects on 404 NotFound', async () => {
+    fetch.once(() => Promise.resolve({ status: HttpStatusCode.NotFound }))
+    const requestPromise = request(`GET ${baseUrl}/org/myorg`)
+    await expect(requestPromise).rejects.toHaveProperty(
+      'status',
+      HttpStatusCode.NotFound,
+    )
+  })
+
+  it('provides response data in error object', async () => {
+    const data = {
+      documentation_url:
+        'https://developer.github.com/v3/issues/labels/#create-a-label',
+      errors: [
+        {
+          resource: 'Label',
+          code: 'invalid',
+          field: 'color',
+        },
+      ],
+    }
+    const response = {
+      status: HttpStatusCode.UnprocessableEntity,
+      headers: {
+        'content-type': 'application/json; charset=utf-8',
+        'x-foo': 'bar',
+      },
+    }
+    fetch.once(() =>
+      Promise.resolve({
+        ...response,
+        body: JSON.stringify(data),
+      }),
+    )
+
+    const requestPromise = request(
+      `POST ${baseUrl}/repos/octocat/hello-world/labels`,
+    )
+    await expect(requestPromise).rejects.toMatchObject<
+      PartialDeep<RequestError>
+    >({
+      status: response.status,
+      response: {
+        ...response,
+        data,
+      },
+    })
+  })
 })
 
 describe('clientele request.create()', () => {
@@ -359,9 +484,77 @@ describe('clientele request.create()', () => {
     expect(request.create).toBeInstanceOf(Function)
   })
 
-  it.todo('sets defaults')
+  it('passes defaults to fetch', async () => {
+    const config = {
+      baseUrl,
+      headers: {
+        'user-agent': 'custom user agent',
+        authorization: 'token 12345',
+      },
+    }
+    const requestInstance = request.create(config)
 
-  it.todo('cascades defaults')
+    await requestInstance('GET /users')
+    expect(fetch).toHaveBeenLastCalledWith(`${config.baseUrl}/users`, {
+      method: 'GET',
+      headers: expect.objectContaining(config.headers) as typeof config.headers,
+    })
+  })
+
+  it('allows overriding defaults', async () => {
+    const defaultConfig = {
+      baseUrl,
+      headers: {
+        'user-agent': 'custom user agent',
+        authorization: 'token 12345',
+      },
+    }
+    const requestInstance = request.create(defaultConfig)
+
+    const overrides = {
+      baseUrl: 'https://github.com/api/v2',
+      headers: {
+        'user-agent': 'different user agent',
+      },
+    }
+
+    await requestInstance('GET /users', {}, overrides)
+    expect(fetch).toHaveBeenLastCalledWith(`${overrides.baseUrl}/users`, {
+      method: 'GET',
+      headers: expect.objectContaining({
+        ...defaultConfig.headers,
+        ...overrides.headers,
+      }) as typeof overrides.headers,
+    })
+  })
+
+  it('cascades defaults', async () => {
+    const defaultConfig = {
+      baseUrl,
+      headers: {
+        'user-agent': 'custom user agent',
+        authorization: 'token 12345',
+      },
+    }
+    const requestInstance = request.create(defaultConfig)
+
+    const overrides = {
+      baseUrl: 'https://github.com/api/v',
+      headers: {
+        'user-agent': 'different user agent',
+      },
+    }
+    const requestInstance2 = requestInstance.create(overrides)
+
+    await requestInstance2('GET /users')
+    expect(fetch).toHaveBeenLastCalledWith(`${overrides.baseUrl}/users`, {
+      method: 'GET',
+      headers: expect.objectContaining({
+        ...defaultConfig.headers,
+        ...overrides.headers,
+      }) as typeof overrides.headers,
+    })
+  })
 })
 
 describe('clientele request instance', () => {
@@ -370,14 +563,27 @@ describe('clientele request instance', () => {
     expect(myRequest).toBeInstanceOf(Function)
   })
 
-  it.todo('accepts omission of route')
+  it('uses configured baseUrl when route is omitted', async () => {
+    const requestInstance = request.create({
+      baseUrl: `${baseUrl}/repos/{owner}/{repo}/issues`,
+    })
+
+    await requestInstance({ owner: 'octocat', repo: 'hello-world' })
+    expect(fetch).toHaveBeenLastCalledWith(
+      `${baseUrl}/repos/octocat/hello-world/issues`,
+      expect.anything(),
+    )
+  })
 
   it('appends url to configured baseUrl', async () => {
     const myRequest = request.create({ baseUrl })
+
     await myRequest('/api/v3')
     expect(fetch.mock.lastCall?.[0]).toBe(`${baseUrl}/api/v3`)
+
     await myRequest('api/v3')
     expect(fetch.mock.lastCall?.[0]).toBe(`${baseUrl}/api/v3`)
+
     await myRequest('/api/v3/repos/{repo}', { repo: 'octocat' })
     expect(fetch.mock.lastCall?.[0]).toBe(`${baseUrl}/api/v3/repos/octocat`)
   })

@@ -1,3 +1,4 @@
+import assert from 'node:assert'
 import { getUserAgent } from 'universal-user-agent'
 import packageJson from '@clientelejs/request/package.json'
 import type {
@@ -63,7 +64,7 @@ function getAbsoluteUrl(baseUrl: string, url: string) {
     if (url.startsWith('/')) {
       url = url.slice(1)
     }
-    url = `${baseUrl}/${url}`
+    url = [baseUrl, url].filter(Boolean).join('/')
   }
   return url
 }
@@ -77,6 +78,9 @@ function mergeConfigAndParams(
   let body: string | object | undefined
 
   const urlTemplate = getAbsoluteUrl(config.baseUrl || '', config.url || '')
+  if (urlTemplate === '') {
+    throw new Error('URL cannot be blank.')
+  }
   let url = parseTemplate(urlTemplate).expand(params)
 
   const urlTemplateExpressions = extractUrlTemplateExpressions(urlTemplate)
