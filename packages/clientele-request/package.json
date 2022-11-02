@@ -1,7 +1,7 @@
 {
   "name": "@clientelejs/request",
   "version": "0.1.0",
-  "description": "<description>",
+  "description": "Send parameterized requests to an API with sensible defaults in browsers and Node",
   "author": "John Bernard <38332081+loqusion@users.noreply.github.com>",
   "license": "MIT",
   "types": "./dist/index.d.ts",
