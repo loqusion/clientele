@@ -49,6 +49,47 @@ describe('clientele request', () => {
     },
   )
 
+  it('uppercases methods', async () => {
+    await request(`put ${baseUrl}`)
+    expect(fetch).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({ method: 'PUT' }),
+    )
+
+    await request(`${baseUrl}`, {}, { method: 'put' as 'PUT' })
+    expect(fetch).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({ method: 'PUT' }),
+    )
+  })
+
+  it('accepts method in config', async () => {
+    const method = 'PUT'
+    await request(baseUrl, {}, { method })
+    expect(fetch).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({ method }),
+    )
+  })
+
+  it('rejects empty url', async () => {
+    await expect(request('')).rejects.toBeDefined()
+  })
+
+  it('trims redundant slashes between baseUrl and url', async () => {
+    await request(
+      '/repos/loqusion/clientele/issues',
+      {},
+      {
+        baseUrl: `https://github.com/api/v2/`,
+      },
+    )
+    expect(fetch).toHaveBeenLastCalledWith(
+      'https://github.com/api/v2/repos/loqusion/clientele/issues',
+      expect.anything(),
+    )
+  })
+
   it('defaults to GET when method is omitted from route string', async () => {
     await request(baseUrl)
     expect(fetch.mock.lastCall?.[1]).toHaveProperty('method', 'GET')
@@ -89,10 +130,6 @@ describe('clientele request', () => {
         etag: '"33a64df551425fcc55e4d42a148795d9f25f89d4"',
       }),
     )
-  })
-
-  it('rejects empty url', async () => {
-    await expect(request('')).rejects.toBeDefined()
   })
 
   // eslint-disable-next-line jest/no-disabled-tests
@@ -484,6 +521,11 @@ describe('clientele request.create()', () => {
     expect(request.create).toBeInstanceOf(Function)
   })
 
+  it('returns a function', () => {
+    const myRequest = request.create()
+    expect(myRequest).toBeInstanceOf(Function)
+  })
+
   it('passes defaults to fetch', async () => {
     const config = {
       baseUrl,
@@ -492,9 +534,9 @@ describe('clientele request.create()', () => {
         authorization: 'token 12345',
       },
     }
-    const requestInstance = request.create(config)
+    const myRequest = request.create(config)
 
-    await requestInstance('GET /users')
+    await myRequest('GET /users')
     expect(fetch).toHaveBeenLastCalledWith(`${config.baseUrl}/users`, {
       method: 'GET',
       headers: expect.objectContaining(config.headers) as typeof config.headers,
@@ -509,7 +551,7 @@ describe('clientele request.create()', () => {
         authorization: 'token 12345',
       },
     }
-    const requestInstance = request.create(defaultConfig)
+    const myRequest = request.create(defaultConfig)
 
     const overrides = {
       baseUrl: 'https://github.com/api/v2',
@@ -518,7 +560,7 @@ describe('clientele request.create()', () => {
       },
     }
 
-    await requestInstance('GET /users', {}, overrides)
+    await myRequest('GET /users', {}, overrides)
     expect(fetch).toHaveBeenLastCalledWith(`${overrides.baseUrl}/users`, {
       method: 'GET',
       headers: expect.objectContaining({
@@ -536,7 +578,7 @@ describe('clientele request.create()', () => {
         authorization: 'token 12345',
       },
     }
-    const requestInstance = request.create(defaultConfig)
+    const myRequest = request.create(defaultConfig)
 
     const overrides = {
       baseUrl: 'https://github.com/api/v',
@@ -544,9 +586,9 @@ describe('clientele request.create()', () => {
         'user-agent': 'different user agent',
       },
     }
-    const requestInstance2 = requestInstance.create(overrides)
+    const myRequest2 = myRequest.create(overrides)
 
-    await requestInstance2('GET /users')
+    await myRequest2('GET /users')
     expect(fetch).toHaveBeenLastCalledWith(`${overrides.baseUrl}/users`, {
       method: 'GET',
       headers: expect.objectContaining({
@@ -559,16 +601,16 @@ describe('clientele request.create()', () => {
 
 describe('clientele request instance', () => {
   it('is a function', () => {
-    const myRequest = request.create()
+    const myRequest = request.create({ baseUrl })
     expect(myRequest).toBeInstanceOf(Function)
   })
 
   it('uses configured baseUrl when route is omitted', async () => {
-    const requestInstance = request.create({
+    const myRequest = request.create({
       baseUrl: `${baseUrl}/repos/{owner}/{repo}/issues`,
     })
 
-    await requestInstance({ owner: 'octocat', repo: 'hello-world' })
+    await myRequest({ owner: 'octocat', repo: 'hello-world' })
     expect(fetch).toHaveBeenLastCalledWith(
       `${baseUrl}/repos/octocat/hello-world/issues`,
       expect.anything(),
@@ -586,5 +628,12 @@ describe('clientele request instance', () => {
 
     await myRequest('/api/v3/repos/{repo}', { repo: 'octocat' })
     expect(fetch.mock.lastCall?.[0]).toBe(`${baseUrl}/api/v3/repos/octocat`)
+  })
+
+  it('uses config', async () => {
+    const myRequest = request.create({ baseUrl })
+    const expectedUrl = 'https://github.com/api/v2'
+    await myRequest({}, { baseUrl: expectedUrl })
+    expect(fetch).toHaveBeenLastCalledWith(expectedUrl, expect.anything())
   })
 })

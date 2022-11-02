@@ -1,4 +1,3 @@
-import assert from 'node:assert'
 import { getUserAgent } from 'universal-user-agent'
 import packageJson from '@clientelejs/request/package.json'
 import type {
@@ -30,9 +29,9 @@ function normalizeConfig<C extends ClienteleRequestConfig | ClienteleDefaults>(
       removeUndefinedProperties(normalizedConfig.headers),
     ) as typeof config.headers
   }
-  if ('method' in normalizedConfig) {
+  if ('method' in normalizedConfig && normalizedConfig.method) {
     normalizedConfig.method =
-      normalizedConfig.method?.toUpperCase() as typeof normalizedConfig.method
+      normalizedConfig.method.toUpperCase() as typeof normalizedConfig.method
   }
   return normalizedConfig
 }
@@ -107,7 +106,9 @@ function mergeConfigAndParams(
   } as FetchConfig
 }
 
-const createInstance = (defaults: ClienteleDefaults = {}) => {
+const createInstance = (
+  /* istanbul ignore next */ defaults: ClienteleDefaults = {},
+) => {
   const requestApi = async function request(...args: unknown[]) {
     let route: string
     let params: ClienteleRequestParameters
@@ -117,7 +118,7 @@ const createInstance = (defaults: ClienteleDefaults = {}) => {
       params = (args[1] ?? {}) as typeof params
       unnormalizedConfig = args[2] ?? {}
     } else {
-      params = (args[0] ?? {}) as typeof params
+      params = args[0] as typeof params
       unnormalizedConfig = args[1] ?? {}
       route = unnormalizedConfig.url || ''
     }

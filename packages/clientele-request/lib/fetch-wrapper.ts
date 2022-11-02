@@ -39,6 +39,7 @@ function rawHeaders<H extends Record<string, string> = Record<string, string>>(
 }
 
 function toErrorMessage(data: unknown): string {
+  /* istanbul ignore if */
   if (typeof data === 'string') return data
   return `Error: ${JSON.stringify(data)}`
 }
