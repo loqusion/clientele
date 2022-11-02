@@ -1,4 +1,4 @@
-import type { Agent } from 'http'
+import type { Agent } from 'node:http'
 
 export type Route = string
 
