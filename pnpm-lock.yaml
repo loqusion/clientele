@@ -46,6 +46,7 @@ importers:
       cross-fetch: ^3.1.5
       is-plain-object: ^5.0.0
       jest-fetch-mock: ^3.0.3
+      type-fest: ^3.1.0
       universal-user-agent: ^6.0.0
     dependencies:
       cross-fetch: 3.1.5
@@ -54,6 +55,7 @@ importers:
     devDependencies:
       '@types/node': 18.11.8
       jest-fetch-mock: 3.0.3
+      type-fest: 3.1.0
 
 packages:
 
@@ -3743,6 +3745,11 @@ packages:
   /type-fest/0.21.3:
     resolution: {integrity: sha512-t0rzBq87m3fVcduHDUFhKmyyX+9eo6WQjZvf51Ea/M0Q7+T374Jp1aUiyUl0GKxp8M/OETVHSDvmkyPgvX+X2w==}
     engines: {node: '>=10'}
+    dev: true
+
+  /type-fest/3.1.0:
+    resolution: {integrity: sha512-StmrZmK3eD9mDF9Vt7UhqthrDSk66O9iYl5t5a0TSoVkHjl0XZx/xuc/BRz4urAXXGHOY5OLsE0RdJFIApSFmw==}
+    engines: {node: '>=14.16'}
     dev: true
 
   /typescript/4.8.4:
