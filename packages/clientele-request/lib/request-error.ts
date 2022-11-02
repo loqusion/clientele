@@ -5,8 +5,10 @@ export type RequestErrorOptions = {
   config: ClienteleRequestConfig
 }
 
+export const requestErrorName = 'ClienteleRequestError' as const
+
 export default class RequestError extends Error {
-  name: 'ClienteleRequestError'
+  name: typeof requestErrorName
   status: number
   config: ClienteleRequestConfig
   response?: ClienteleResponse<unknown>
@@ -14,13 +16,7 @@ export default class RequestError extends Error {
   constructor(
     message: string,
     statusCode: number,
-    options: RequestErrorOptions = {
-      config: {
-        method: 'GET',
-        url: '',
-        headers: {},
-      },
-    },
+    options: RequestErrorOptions,
   ) {
     super(message)
 
@@ -28,7 +24,7 @@ export default class RequestError extends Error {
       Error.captureStackTrace(this, this.constructor)
     }
 
-    this.name = 'ClienteleRequestError'
+    this.name = requestErrorName
     this.status = statusCode
 
     if ('response' in options) {
