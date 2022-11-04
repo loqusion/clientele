@@ -1,4 +1,5 @@
 import { getUserAgent } from 'universal-user-agent'
+import { mergeDeep } from '@clientelejs/shared'
 import packageJson from '@clientelejs/request/package.json'
 import type {
   ClienteleDefaults,
@@ -15,7 +16,6 @@ import {
   addQueryParameters,
   extractUrlTemplateExpressions,
   lowercaseKeys,
-  mergeDeep,
   methodCanHaveBody,
   removeUndefinedProperties,
 } from './utils.js'

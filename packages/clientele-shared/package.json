@@ -1,7 +1,7 @@
 {
-  "name": "@clientelejs/request",
+  "name": "@clientelejs/shared",
   "version": "0.1.1",
-  "description": "Send parameterized requests to an API with sensible defaults in browsers and Node",
+  "description": "Some modules shared between clientele packages",
   "author": "John Bernard <38332081+loqusion@users.noreply.github.com>",
   "license": "MIT",
   "types": "./dist/index.d.ts",
@@ -23,16 +23,8 @@
     "clean": "rimraf dist",
     "types:check": "tsc --noEmit"
   },
-  "devDependencies": {
-    "@types/node": "^18.8.5",
-    "jest-fetch-mock": "^3.0.3",
-    "type-fest": "^3.1.0"
-  },
   "dependencies": {
-    "@clientelejs/shared": "workspace:^",
-    "cross-fetch": "^3.1.5",
-    "is-plain-object": "^5.0.0",
-    "universal-user-agent": "^6.0.0"
+    "is-plain-object": "^5.0.0"
   },
   "engines": {
     "node": ">=16"

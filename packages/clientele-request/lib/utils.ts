@@ -1,8 +1,4 @@
-import { isPlainObject } from 'is-plain-object'
 import { Method } from './types.js'
-
-const hasOwn = (obj: unknown, v: PropertyKey) =>
-  Object.prototype.hasOwnProperty.call(obj, v)
 
 export function methodCanHaveBody(method: Method) {
   return ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)
@@ -15,26 +11,6 @@ export function lowercaseKeys(
     newObj[key.toLowerCase()] = object[key]
     return newObj
   }, {})
-}
-
-export function mergeDeep(
-  defaults: Record<string, unknown>,
-  options: Record<string, unknown>,
-): Record<string, unknown> {
-  const result = { ...defaults }
-
-  Object.keys(options).forEach((key) => {
-    if (isPlainObject(options[key]) && hasOwn(defaults, key)) {
-      result[key] = mergeDeep(
-        defaults[key] as typeof defaults,
-        options[key] as typeof options,
-      )
-    } else {
-      Object.assign(result, { [key]: options[key] })
-    }
-  })
-
-  return result
 }
 
 export function removeUndefinedProperties(
