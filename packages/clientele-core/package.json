@@ -1,0 +1,36 @@
+{
+  "name": "@clientelejs/core",
+  "version": "0.1.1",
+  "description": "",
+  "author": "John Bernard <38332081+loqusion@users.noreply.github.com>",
+  "license": "MIT",
+  "types": "./dist/index.d.ts",
+  "module": "./dist/index.js",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "type": "module",
+  "files": [
+    "dist/**"
+  ],
+  "scripts": {
+    "watch": "pnpm build --watch",
+    "build": "tsc --project tsconfig.build.json",
+    "clean": "rimraf dist",
+    "types:check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "type-fest": "^3.1.0"
+  },
+  "dependencies": {
+    "@clientelejs/request": "workspace:^",
+    "universal-user-agent": "^6.0.0"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+}

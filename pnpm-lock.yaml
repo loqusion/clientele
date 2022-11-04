@@ -40,6 +40,17 @@ importers:
       ts-jest: 29.0.3_r7gdwuj75x2gz25bauak3xcnbm
       typescript: 4.8.4
 
+  packages/clientele-core:
+    specifiers:
+      '@clientelejs/request': workspace:^
+      type-fest: ^3.1.0
+      universal-user-agent: ^6.0.0
+    dependencies:
+      '@clientelejs/request': link:../clientele-request
+      universal-user-agent: 6.0.0
+    devDependencies:
+      type-fest: 3.1.0
+
   packages/clientele-request:
     specifiers:
       '@types/node': ^18.8.5
