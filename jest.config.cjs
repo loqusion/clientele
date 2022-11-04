@@ -7,6 +7,8 @@ module.exports = {
   setupFiles: ['<rootDir>/setup-jest.cjs'],
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
+    '^@clientelejs/core$': '<rootDir>/packages/clientele-core/lib/index.ts',
+    '^@clientelejs/request$': '<rootDir>/packages/clientele-request/lib/index.ts',
   },
   transformIgnorePatterns: ['.*/node_modules/(?!universal-user-agent)'],
 }
