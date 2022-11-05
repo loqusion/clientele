@@ -28,6 +28,7 @@
   },
   "dependencies": {
     "@clientelejs/request": "workspace:^",
+    "@clientelejs/shared": "workspace:^",
     "universal-user-agent": "^6.0.0"
   },
   "engines": {
