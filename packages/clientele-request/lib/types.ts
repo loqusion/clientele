@@ -106,6 +106,12 @@ export type ClienteleRequestParameters = {
   [parameter: string]: any
 }
 
+export type ClienteleRequestInterfaceOrInstance<
+  D extends ClienteleDefaults = ClienteleDefaults,
+> = D extends { baseUrl: string }
+  ? ClienteleRequestInstance<D>
+  : ClienteleRequestInterface<D>
+
 export interface ClienteleRequestInterface<
   D extends ClienteleDefaults = ClienteleDefaults,
 > {
@@ -117,9 +123,7 @@ export interface ClienteleRequestInterface<
 
   create: <C extends ClienteleDefaults = ClienteleDefaults>(
     config?: C,
-  ) => C extends { baseUrl: string }
-    ? ClienteleRequestInstance<D & C>
-    : ClienteleRequestInterface<D & C>
+  ) => ClienteleRequestInterfaceOrInstance<D & C>
 
   defaults: D
 }
