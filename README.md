@@ -1,13 +1,6 @@
-# Clientele
+# Clientele.js (DEFUNCT)
 
-## Goals
+Clientele.js was going to be an OpenAPI codegen ecosystem targeting TypeScript and JavaScript, inspired by Octokit. Its main focus was extensibility, so that it would be easy to build additional functionality by using Clientele.js (+ optional plugins) as a base.
 
-- Minimal bundle size
-- Plugins & hooks for extensibility
-  - e.g. rest, graphql, swr
-- Supports multiple clients (fetch, xhr, node, axios, graphql, etc.)
-- First-class TypeScript support
-- Generates JavaScript with TypeScript declaration files
-- Namespaces based on model type
-- 100% test coverage
-- Cancelable promise pattern
+However, better solutions for this are already available. This exists merely as an archive.
+
